@@ -229,7 +229,7 @@ This is an atomic version of `REVOKE (previous_delegatee, quantity)` + `DELEGATE
 This is a transaction that reports malicious validator.
 
 The criminal loses all his deposit and rewards and is banned immediately; it is the only case where a validator set is changed during the term.
-It's possible that the criminal has neither deposit nor rewards if the **REPORT_DOUBLE_VOTE** is reported after 1 term passes.
+It's possible that the criminal has neither deposit nor rewards if the **REPORT_DOUBLE_VOTE** is reported after the final rewards are calculated.
 In this case, the informant gets no reward; however, the transaction still bans the criminal.
 
 The informant receives the deposit of the criminal as prize money immediately.
@@ -244,6 +244,8 @@ The type of the messages depends on the consensus engine. For example, type Mess
 
 ## Implementation
 ### States
+
+#### `era` = 0
 ```
 stakeholders = [ address+ ], address asc
 balance(address) = quantity
@@ -253,6 +255,20 @@ banned = [ address+ ], address asc
 jailed = [ [address, deposits, custody_until, released_at]+ ], address asc
 term_id = [ the last block number of the previous term, the current term id ]
 intermediate_rewards = [ [ address, rewards ]+ address asc, [ address, rewards ]+ address asc ]
+validators = [ [ weight, delegation, deposit, pubkey ] ] (weight, delegation, deposit, pubkey) asc
+```
+
+#### `era` = 1
+```
+stakeholders = [ address+ ], address asc
+balance(address) = quantity
+delegation(delegator) = [ [delegatee, quantity]+ ], delegatee asc
+candidates = [ [pubkey, deposits, nominate_end_at, metadata]+ ], 'priority' asc. See candidate prioritizing
+banned = [ address+ ], address asc
+jailed = [ [address, deposits, custody_until, released_at]+ ], address asc
+term_id = [ the last block number of the previous term, the current term id ]
+intermediate_rewards = [ address, rewards ]+ address asc
+final_rewards = [ address, rewards ]+ address asc
 validators = [ [ weight, delegation, deposit, pubkey ] ] (weight, delegation, deposit, pubkey) asc
 ```
 

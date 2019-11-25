@@ -82,6 +82,7 @@ makeKey(...fragments) = blake256(rlp([
     See 'How to update validators' section in [dynamic validator](./Dynamic-Validator.md#How-to-update-validators).
 
 ## Intermediate rewards
+### `era` = 0
 
   * State Key: `makeKey("IntermediateRewards")`
   * Value: `rlp([list of [account,quantity], list of [account,quantity]])`
@@ -89,6 +90,27 @@ makeKey(...fragments) = blake256(rlp([
     The `address` is an `AccountId`, and `quantity` is a `u64` value of CCC. The value is an RLP encoded list of two lists.
     The first list is the rewards of the previous term, and the second list is the rewards of the current term.
     Each list is sorted by `account` in ascending order, and every `account` in a list should be unique.
+
+### `era` = 1
+  * State Key: `makeKey("IntermediateRewards")`
+  * Value: `rlp(list of [account,quantity])`
+
+    The `address` is an `AccountId`, and `quantity` is a `u64` value of CCC. The value is an RLP encoded list.
+    The value is the rewards of the current term.
+    The items are sorted by `account` in ascending order, and every `account` in a list should be unique.
+
+## Final rewards
+
+### `era` = 0
+    This state item doesn't exist in `era` = 0
+
+### `era` = 1
+  * State Key: `makeKey("FinalRewards")`
+  * Value: `rlp(list of [account,quantity])`
+
+    The `address` is an `AccountId`, and `quantity` is a `u64` value of CCC. The value is an RLP encoded list.
+    The value is the final rewards that will be distributed to the validators.
+    The items are sorted by `account` in ascending order, and every `account` in a list should be unique.
 
 # Staking Actions
 
