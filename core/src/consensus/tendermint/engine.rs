@@ -139,8 +139,8 @@ impl ConsensusEngine for Tendermint {
         let client = self.client().ok_or(EngineError::CannotOpenBlock)?;
 
         let block_number = block.header().number();
-        let era = client.term_common_params(block_number.into()).map_or(0, |p| p.era());
         let metadata = block.state().metadata()?.expect("Metadata must exist");
+        let era = metadata.term_params().map_or(0, |p| p.era());
         ctrace!(TEST_SCRIPT, "on_open_block #{}, {}", block_number, block.header().hash());
         ctrace!(TEST_SCRIPT, "era = {}", era);
         if block_number == metadata.last_term_finished_block_num() + 1 {
