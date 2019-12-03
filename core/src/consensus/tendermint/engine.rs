@@ -141,12 +141,16 @@ impl ConsensusEngine for Tendermint {
         let block_number = block.header().number();
         let era = client.term_common_params(block_number.into()).map_or(0, |p| p.era());
         let metadata = block.state().metadata()?.expect("Metadata must exist");
+        ctrace!(TEST_SCRIPT, "on_open_block #{}, {}", block_number, block.header().hash());
+        ctrace!(TEST_SCRIPT, "era = {}", era);
         if block_number == metadata.last_term_finished_block_num() + 1 {
             match era {
                 0 => {}
                 1 => {
                     let rewards = stake::v1::drain_current_rewards(block.state_mut())?;
+                    ctrace!(TEST_SCRIPT, "rewards = {:?}", rewards);
                     let start_of_the_current_term = block_number;
+                    ctrace!(TEST_SCRIPT, "start_of_the_current_term = {}", start_of_the_current_term);
                     let start_of_the_previous_term = {
                         let end_of_the_two_level_previous_term = client
                             .last_term_finished_block_num((metadata.last_term_finished_block_num() - 1).into())
@@ -154,6 +158,7 @@ impl ConsensusEngine for Tendermint {
 
                         end_of_the_two_level_previous_term + 1
                     };
+                    ctrace!(TEST_SCRIPT, "start_of_the_previous_term = {}", start_of_the_previous_term);
 
                     let banned = stake::Banned::load_from_state(block.state())?;
                     let start_of_the_current_term_header =
@@ -168,6 +173,7 @@ impl ConsensusEngine for Tendermint {
                         start_of_the_previous_term,
                         &banned,
                     )?;
+                    ctrace!(TEST_SCRIPT, "pending_rewards = {:?}", pending_rewards);
 
                     stake::v1::update_calculated_rewards(block.state_mut(), pending_rewards)?;
                 }
@@ -281,6 +287,7 @@ impl ConsensusEngine for Tendermint {
             }
             (1, _) => {
                 for (address, reward) in stake::v1::drain_calculated_rewards(block.state_mut())? {
+                    ctrace!(TEST_SCRIPT, "address = {}, reward = {}", address, reward);
                     self.machine.add_balance(block, &address, reward)?;
                 }
 
@@ -434,6 +441,7 @@ fn calculate_pending_rewards_of_the_previous_term(
     start_of_the_previous_term: u64,
     banned: &stake::Banned,
 ) -> Result<HashMap<Address, u64>, Error> {
+    ctrace!(TEST_SCRIPT, "calculate_pending_rewards_of_the_previous_term");
     // XXX: It's okay because we don't have a plan to increasing the maximum number of validators.
     //      However, it's better to use the correct number.
     const MAX_NUM_OF_VALIDATORS: usize = 30;
@@ -447,9 +455,12 @@ fn calculate_pending_rewards_of_the_previous_term(
         validators.addresses(&grand_parent_header.parent_hash())
     };
     while start_of_the_previous_term != header.number() {
+        ctrace!(TEST_SCRIPT, "iterating header #{}, target: #{}", header.number(), start_of_the_previous_term);
         for index in TendermintSealView::new(&header.seal()).bitset()?.true_index_iter() {
             let signer = *parent_validators.get(index).expect("The seal must be the signature of the validator");
+            ctrace!(TEST_SCRIPT, "signer = {}", signer);
             *signed_blocks.entry(signer).or_default() += 1;
+            ctrace!(TEST_SCRIPT, "signed_blocks = {:?}", signed_blocks);
         }
 
         header = chain.block_header(&header.parent_hash().into()).unwrap();
@@ -462,24 +473,37 @@ fn calculate_pending_rewards_of_the_previous_term(
 
         let author = header.author();
         let (proposed, missed) = missed_signatures.entry(author).or_default();
+        ctrace!(TEST_SCRIPT, "author = {}", author);
+        ctrace!(TEST_SCRIPT, "proposed = {}", proposed);
+        ctrace!(TEST_SCRIPT, "missed = {}", missed);
         *proposed += 1;
         *missed += parent_validators.len() - TendermintSealView::new(&header.seal()).bitset()?.count();
+        ctrace!(TEST_SCRIPT, "new_proposed = {}", proposed);
+        ctrace!(TEST_SCRIPT, "new_missed = {}", missed);
+        ctrace!(TEST_SCRIPT, "parent_validators.len() = {}", parent_validators.len());
+        ctrace!(TEST_SCRIPT, "seal_count = {}", TendermintSealView::new(&header.seal()).bitset()?.count());
     }
 
     let mut reduced_rewards = 0;
 
     // Penalty disloyal validators
     let number_of_blocks_in_term = start_of_the_current_term - start_of_the_previous_term;
+    ctrace!(TEST_SCRIPT, "number_of_blocks_in_term = {}", number_of_blocks_in_term);
     for (address, intermediate_reward) in rewards {
+        ctrace!(TEST_SCRIPT, "address = {}, intermediate_reward = {}", address, intermediate_reward);
         if banned.is_banned(&address) {
             reduced_rewards += intermediate_reward;
             continue
         }
         let number_of_signatures = u64::try_from(*signed_blocks.get(&address).unwrap()).unwrap();
         let final_block_rewards = final_rewards(intermediate_reward, number_of_signatures, number_of_blocks_in_term);
+        ctrace!(TEST_SCRIPT, "number_of_signatures = {}", number_of_signatures);
+        ctrace!(TEST_SCRIPT, "final_block_rewards = {}", final_block_rewards);
         reduced_rewards += intermediate_reward - final_block_rewards;
+        ctrace!(TEST_SCRIPT, "reduced_rewards = {}", reduced_rewards);
         pending_rewards.insert(address, final_block_rewards);
     }
+    ctrace!(TEST_SCRIPT, "pending_rewards = {:?}", pending_rewards);
 
     // Give additional rewards
     give_additional_rewards(reduced_rewards, missed_signatures, |address, reward| {
