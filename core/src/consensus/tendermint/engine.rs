@@ -57,6 +57,12 @@ impl ConsensusEngine for Tendermint {
         &self.machine.as_ref()
     }
 
+    fn send_snapshot_notify(&self, block_hash: BlockHash) {
+        if let Some(sender) = self.snapshot_notify_sender.lock().as_ref() {
+            sender.notify(block_hash)
+        }
+    }
+
     /// (consensus view, proposal signature, authority signatures)
     fn seal_fields(&self, _header: &Header) -> usize {
         SEAL_FIELDS
@@ -372,6 +378,7 @@ impl ConsensusEngine for Tendermint {
     }
 
     fn register_snapshot_notify_sender(&self, sender: SnapshotNotifySender) {
+        *self.snapshot_notify_sender.lock() = Some(sender.clone());
         self.snapshot_notify_sender_initializer.send(sender).unwrap();
     }
 
