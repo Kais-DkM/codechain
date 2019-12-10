@@ -32,7 +32,7 @@ use std::thread::JoinHandle;
 use crossbeam_channel as crossbeam;
 use cstate::ActionHandler;
 use ctimer::TimerToken;
-use parking_lot::RwLock;
+use parking_lot::{RwLock, Mutex};
 
 use self::chain_notify::TendermintChainNotify;
 pub use self::message::{ConsensusMessage, VoteOn, VoteStep};
@@ -76,6 +76,7 @@ pub struct Tendermint {
     /// Chain notify
     chain_notify: Arc<TendermintChainNotify>,
     has_signer: AtomicBool,
+    snapshot_notify_sender: Mutex<Option<SnapshotNotifySender>>,
 }
 
 impl Drop for Tendermint {
@@ -122,6 +123,7 @@ impl Tendermint {
             stake,
             chain_notify,
             has_signer: false.into(),
+            snapshot_notify_sender: Mutex::new(None),
         })
     }
 

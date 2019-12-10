@@ -23,6 +23,7 @@ pub fn create() -> (NotifySender, NotifyReceiverSource) {
     )
 }
 
+#[derive(Clone)]
 pub struct NotifySender {
     tx: Arc<RwLock<Option<SyncSender<BlockHash>>>>,
 }
